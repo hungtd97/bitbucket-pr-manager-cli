@@ -1,0 +1,24 @@
+{
+  "name": "@hunghuc/bitbucket-pr-manager-cli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm link"
+  },
+  "bin": {
+    "bpmc": "./index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "chalk": "^4.1.2",
+    "inquirer": "^12.4.2",
+    "ora": "^8.2.0",
+    "yargs": "^17.7.2"
+  }
+}
