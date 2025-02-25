@@ -1,6 +1,6 @@
 {
   "name": "@hunghuc/bitbucket-pr-manager-cli",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -10,6 +10,10 @@
   },
   "bin": {
     "bpmc": "./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hungtd97/bitbucket-pr-manager-cli.git"
   },
   "keywords": [],
   "author": "",

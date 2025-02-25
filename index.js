@@ -22,6 +22,8 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 
 const showMainMenu = async (client, config) => {
+  console.clear();
+
   const { action } = await inquirer.prompt([
     {
       type: "list",
@@ -156,6 +158,5 @@ async function main() {
 
 // Run the program
 main().catch((error) => {
-  console.error(chalk.red("An error occurred:"), error);
-  process.exit(1);
+  process.exit(0);
 });
