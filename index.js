@@ -158,5 +158,6 @@ async function main() {
 
 // Run the program
 main().catch((error) => {
+  console.log(`🚀 ~ error:`, error);
   process.exit(0);
 });

@@ -10,7 +10,14 @@ import { fileURLToPath } from "url";
 import os from "os";
 import { preCheckRepository } from "./repository.js";
 import { fetchBranchesPaginated, getBranches } from "./branch.js";
-import { loadConfig, saveConfig } from "./config.js";
+import {
+  loadConfig,
+  saveConfig,
+  saveDestinationBranches,
+  saveSourceBranch,
+  getSourceBranch,
+  getDestinationBranches,
+} from "./config.js";
 
 // List pull requests
 export const listPullRequests = async (
@@ -92,19 +99,74 @@ export const mergePullRequest = async (
 
 export const createPullRequest = async (client, config) => {
   const repo = await preCheckRepository(config);
-  let lastUsedConfig = loadConfig();
   let branches = [];
   let sourceBranch = "";
-  if (lastUsedConfig.sourceBranch) {
-    const { reuseSourceBranches } = await inquirer.prompt([
+
+  let oldSourceBranch = getSourceBranch(config, repo);
+  let oldDestinationBranch = getDestinationBranches(config, repo);
+  var reuseSourceBranches,
+    reuseDestinationBranches = false;
+
+  // Confirm to use old source branch
+  if (oldSourceBranch) {
+    var { reuseSourceBranches } = await inquirer.prompt([
       {
         type: "confirm",
         name: "reuseSourceBranches",
-        message: `Do you want to re-use this resources branches?: ${lastUsedConfig.sourceBranch}`,
+        message: `Do you want to re-use this resources branches?: ${oldSourceBranch}`,
         default: true,
       },
     ]);
-    if (!reuseSourceBranches) {
+  }
+  //   If not re-use old source branch
+  if (!reuseSourceBranches) {
+    const spinner = ora("Fetching branches...").start();
+    branches = await fetchBranchesPaginated(client, config, repo);
+    if (branches.length === 0) {
+      console.log(chalk.red("No branches found."));
+      return;
+    }
+    spinner.succeed("Branches fetched successfully!");
+
+    const { newSourceBranch } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "newSourceBranch",
+        message: "Select source branch:",
+        choices: branches,
+        pageSize: 40,
+      },
+    ]);
+    sourceBranch = newSourceBranch;
+  }
+  //   If re-use old source branch
+  else {
+    sourceBranch = oldSourceBranch;
+  }
+
+  //   Confirm to use old destination branches
+  if (!!oldDestinationBranch && oldDestinationBranch.length > 0) {
+    var { reuseDestinationBranches } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "reuseDestinationBranches",
+        message: `Do you want to re-create with these destination branches?\n - ${oldDestinationBranch.join(
+          "\n - "
+        )}\n`,
+        default: true,
+      },
+    ]);
+  }
+  //   If re-use old destination branches
+  if (reuseDestinationBranches) {
+    // Store for future use
+    saveSourceBranch(config, repo, sourceBranch);
+    saveDestinationBranches(config, repo, oldDestinationBranch);
+    for (const destBranch of oldDestinationBranch) {
+      await createBitbucketPR(client, config, repo, sourceBranch, destBranch);
+    }
+  } else {
+    if (!branches.length) {
       const spinner = ora("Fetching branches...").start();
       branches = await fetchBranchesPaginated(client, config, repo);
       if (branches.length === 0) {
@@ -112,63 +174,29 @@ export const createPullRequest = async (client, config) => {
         return;
       }
       spinner.succeed("Branches fetched successfully!");
-
-      sourceBranch = await inquirer.prompt([
-        {
-          type: "list",
-          name: "sourceBranch",
-          message: "Select source branch:",
-          choices: branches,
-          pageSize: 40,
-        },
-      ]);
-    } else {
-      sourceBranch = lastUsedConfig.sourceBranch;
     }
-  }
-  if (
-    lastUsedConfig.destinationBranches &&
-    lastUsedConfig.destinationBranches.length > 0
-  ) {
-    const { reuseDestinationBranches } = await inquirer.prompt([
+    // Select destination branches (Multiple)
+    const { destinationBranches } = await inquirer.prompt([
       {
-        type: "confirm",
-        name: "reuseDestinationBranches",
-        message: `Do you want to re-create with these destination branches?\n - ${lastUsedConfig.destinationBranches.join(
-          "\n - "
-        )}\n`,
-        default: true,
+        type: "checkbox",
+        name: "destinationBranches",
+        message: "Select destination branch(es):",
+        choices: branches.filter((b) => b !== sourceBranch),
+        default: oldDestinationBranch || [],
+        pageSize: 40,
+        validate: (input) =>
+          input.length > 0
+            ? true
+            : "You must select at least one destination branch.",
       },
     ]);
-    if (reuseDestinationBranches) {
-      for (const destBranch of lastUsedConfig.destinationBranches) {
-        await createBitbucketPR(client, config, repo, sourceBranch, destBranch);
-      }
+    // Store for future use
+    saveSourceBranch(config, repo, sourceBranch);
+    saveDestinationBranches(config, repo, destinationBranches);
+    // Loop through selected destination branches to create PRs
+    for (const destBranch of destinationBranches) {
+      await createBitbucketPR(client, config, repo, sourceBranch, destBranch);
     }
-  }
-
-  // Select destination branches (Multiple)
-  const { destinationBranches } = await inquirer.prompt([
-    {
-      type: "checkbox",
-      name: "destinationBranches",
-      message: "Select destination branch(es):",
-      choices: branches.filter((b) => b !== sourceBranch),
-      default: lastUsedConfig.destinationBranches || [],
-      pageSize: 40,
-      validate: (input) =>
-        input.length > 0
-          ? true
-          : "You must select at least one destination branch.",
-    },
-  ]);
-
-  // Store for future use
-  saveConfig({ ...config, sourceBranch, destinationBranches });
-
-  // Loop through selected destination branches to create PRs
-  for (const destBranch of destinationBranches) {
-    await createBitbucketPR(client, config, repo, sourceBranch, destBranch);
   }
 };
 

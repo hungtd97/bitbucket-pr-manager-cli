@@ -37,6 +37,82 @@ export const saveConfig = (config) => {
   }
 };
 
+export const getSourceBranch = (config, repo) => {
+  try {
+    if (config.sourceBranch) {
+      const index = config.sourceBranch.findIndex((_) => _.repo === repo);
+      if (index > -1) {
+        return config.sourceBranch[index].source;
+      }
+    }
+    return "";
+  } catch (error) {
+    return "";
+  }
+};
+
+export const getDestinationBranches = (config, repo) => {
+  try {
+    if (config.destinationBranches) {
+      const index = config.destinationBranches.findIndex((_) => _.repo === repo);
+      if (index > -1) {
+        return config.destinationBranches[index].destination;
+      }
+    }
+    return [];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const saveSourceBranch = (config, repo, sourceBranch) => {
+  try {
+    if (config.sourceBranch) {
+      const index = config.sourceBranch.findIndex((_) => _.repo === repo);
+      if (index > -1) {
+        config.sourceBranch[index] = {
+          repo,
+          source: sourceBranch,
+        };
+      } else {
+        config.sourceBranch.push({ repo, source: sourceBranch });
+      }
+    } else {
+      config.sourceBranch = [
+        {
+          repo,
+          source: sourceBranch,
+        },
+      ];
+    }
+    saveConfig(config);
+  } catch (error) {}
+};
+
+export const saveDestinationBranches = (config, repo, destinationBranches) => {
+  try {
+    if (config.destinationBranches) {
+      const index = config.destinationBranches.findIndex((_) => _.repo === repo);
+      if (index > -1) {
+        config.destinationBranches[index] = {
+          repo,
+          destination: destinationBranches,
+        };
+      } else {
+        config.destinationBranches.push({ repo, source: destinationBranches });
+      }
+    } else {
+      config.destinationBranches = [
+        {
+          repo,
+          destination: destinationBranches,
+        },
+      ];
+    }
+    saveConfig(config);
+  } catch (error) {}
+};
+
 // Create Bitbucket API client
 export const createClient = (config) => {
   const auth = Buffer.from(`${config.username}:${config.password}`).toString(
